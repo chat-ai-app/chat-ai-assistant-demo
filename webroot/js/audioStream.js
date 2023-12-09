@@ -31,8 +31,6 @@ export function audioStream(stream) {
     }))(firstAudioTrack.getSettings);
     }
 
-    
-    
   // Create an AudioNode from the stream.
   mediaStreamSource = window.currentAudioContext.createMediaStreamSource(stream);
 

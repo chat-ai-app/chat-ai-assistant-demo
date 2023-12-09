@@ -65,6 +65,7 @@ const dispatchEvent = (eventName, eventData) => document.dispatchEvent(new Custo
  *  MICROPHONE:
  *    'mutedmic' -> microphone is MUTED (passing from ON to OFF)
  */
+
 function mute(timestamp, duration) {
 
   const eventData = { 
@@ -184,6 +185,7 @@ function silence(timestamp, duration) {
   //   speechabort if audio chunck is to brief or at too low volume 
   //   speechstop  if audio chunk appears to be a valid speech
   //
+    
   if ( speechStarted && (silenceItems === maxSilenceItems) ) {
 
     const signalDuration = duration - MAX_INTERSPEECH_SILENCE_MSECS

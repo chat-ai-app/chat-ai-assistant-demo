@@ -40,11 +40,11 @@ class HaleyWakeWordApp {
     }
 	
     render() {
+        
         const app = document.querySelector('.App');
         
         if (!app) return;
         
-        // Clear existing elements
         app.innerHTML = '';
         
         const buttonStart = document.createElement('div');
@@ -76,10 +76,8 @@ class HaleyWakeWordApp {
     }
 }
  
-// export default HaleyWakeWordApp;
-
 window.HaleyWakeWordApp = HaleyWakeWordApp;
 
-// Initialize and render the app
 const app = new HaleyWakeWordApp();
+
 app.render();

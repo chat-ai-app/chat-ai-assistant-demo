@@ -109,8 +109,8 @@ the event 'abortrecording' is generated.
                               |
                        MIN_SIGNAL_DURATION  
 */
-export const MIN_SIGNAL_DURATION = 400
 
+export const MIN_SIGNAL_DURATION = 400
 
 /*
  
@@ -140,7 +140,6 @@ the event 'abortrecording' is generated.
 
 */
 export const MIN_AVERAGE_SIGNAL_VOLUME = 0.04
-
 
 export const DEFAULT_PARAMETERS_CONFIGURATION = {
 
