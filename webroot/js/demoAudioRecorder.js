@@ -1,6 +1,5 @@
 /* eslint-env browser */
 
-
 import { MediaRecorder, register } from 'https://dev.jspm.io/npm:extendable-media-recorder';
 import { connect } from 'https://dev.jspm.io/npm:extendable-media-recorder-wav-encoder'; 
 
@@ -25,12 +24,10 @@ export let audioPlay = true
 
 const FILE_TYPE = 'audio/wav'
 
-
 await register(await connect());
 
 export function audioRecorder(stream) {
 
-    
     console.log("Stream: " + stream);
 
     recorder = new MediaRecorder(stream, { mimeType: FILE_TYPE });
@@ -40,10 +37,10 @@ export function audioRecorder(stream) {
   // listen to dataavailable, 
   // which gets triggered whenever we have
   // an audio blob available
+    
   recorder.addEventListener('dataavailable', onRecordingReady)
 
 }
-
 
 export function onRecordingReady(e) {
 
@@ -51,6 +48,7 @@ export function onRecordingReady(e) {
   // listen recording (audio play) 
   // just if speech is not aborted
   //
+    
   if (audioPlay) {
 
     //
@@ -64,12 +62,10 @@ export function onRecordingReady(e) {
     document.querySelector('#audiostatus').style.background = 'orange'
     document.querySelector('#audiostatus').textContent = 'playback'
 
-    
      window.currentAudioContext.suspend().then( () => {
             console.log('Stopped listening before playback.')
       });  
-      
-      
+            
     // const audio = document.getElementById('audio')
 
     // e.data contains a blob representing the recording
@@ -77,7 +73,6 @@ export function onRecordingReady(e) {
 
     // audio.play()
     
-      
     // call whisper model  
       
       var postdata = new FormData();
@@ -104,8 +99,8 @@ export function onRecordingReady(e) {
         .then((result) => {
             console.log('Success:', result);
           
-          
           const endTime = performance.now();
+          
           const duration = endTime - startTime;
           
           console.log(`Fetch duration: ${duration} ms`);
@@ -116,9 +111,9 @@ export function onRecordingReady(e) {
         
           var parsedText = result["parsedText"];
           
-          var currentSession = window.currentSession;
+          // var currentSession = window.currentSession;
           
-          console.log("CurrentSession: " + currentSession);
+          // console.log("CurrentSession: " + currentSession);
           
           /*
           
@@ -188,7 +183,6 @@ export function startRecording() {
   recorder.start()
 }
 
-
 export function stopRecording() {
   // Stopping the recorder will eventually trigger the `dataavailable` event and we can complete the recording process
   recorder.stop()
@@ -201,6 +195,7 @@ export function stopRecording() {
  *
  * abort and start
  */ 
+
 export function restartRecording() {
   
   // https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder/state
@@ -232,5 +227,3 @@ export function suspendRecording() {
 export function resumeRecording() {
   DEFAULT_PARAMETERS_CONFIGURATION.recordingEnabled = true
 }  
-
-
