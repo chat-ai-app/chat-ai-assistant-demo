@@ -62,6 +62,70 @@
 		        
 <style> body { margin: 0; } </style>
 
+<style>
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+}
+
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+
+input:checked + .slider {
+  background-color: #2196F3;
+}
+
+input:focus + .slider {
+  box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+  -webkit-transform: translateX(26px);
+  -ms-transform: translateX(26px);
+  transform: translateX(26px);
+}
+
+/* Rounded sliders */
+.slider.round {
+  border-radius: 34px;
+}
+
+.slider.round:before {
+  border-radius: 50%;
+}
+        
+</style>          
+        
+        
 </head>
 
 <body>
@@ -149,8 +213,23 @@
         <div class="features-body active">
             <h6>Chat with the A.I. Assistant</h6>
             
-            <p>Chat with powerful A.I. models.
-            </p>
+            
+            
+            
+               <div align="center">
+                <h6>Listen &amp; Speak On/Off</h6> <label class="switch">
+  <input type="checkbox">
+  <span class="slider round"></span>
+</label>
+        
+                   
+        <p>Chat with powerful A.I. models.
+        </p>           
+                   
+        <p><br><br>
+        </p>   
+                
+            </div>
             
             
             <!-- add widget here -->
@@ -288,6 +367,179 @@
 </div>
     
     
+    <script src="https://unpkg.com/eventemitter3@4.0.7/umd/eventemitter3.min.js"></script>
+    
+    
+    
+    <!-- <script type="module" src="lib/bumblebee.js"></script> -->
+    
+    
+    <div id="root">
+
+    <div class="App"></div>
+    
+    </div>
+    
+    <script>
+    
+    (async function () {
+        await import('./lib/bumblebee.js');
+        await import('./js/app.js');
+    })();
+    
+    </script>
+    
+    
+    <!-- <script src="js/app.js"></script> -->
+    
+    
+    <!--
+    <div id="root"></div>
+    <script src="js/index.js"></script>
+    -->
+    
+
+    
+    <button id="start">START</button>
+    <button id="startconsoledebug">enable console logs</button>
+    <button id="stopconsoledebug">disable console logs</button>
+    <button id="stop">STOP</button>
+
+    
+    
+    <div>
+      REAL-TIME EVENTS/STATUS 
+      <table>
+        <tr>
+          <th>Status</th>
+          <th>Value</th>
+        </tr>
+        <tr>
+          <td>microphone</td>
+          <td id="microphonestatuscell"><a id="microphonestatus"></a></td>
+        </tr>
+        <tr>
+          <td>audio</td>
+          <td id="audiostatuscell"><a id="audiostatus"></a></td>
+        </tr>
+        <tr>
+          <td>speech<br>recording</td>
+          <td id="recordingcell"><a id="recording"></a><p><audio id="audio" controls></audio></p></td>
+        </tr>
+    </table>
+    </div>
+    
+    
+    <div>
+      CONFIGURATION PARAMETERS
+      <table>
+        <tr>
+          <th>Parameter</th>
+          <th>Value</th>
+        </tr>
+        <tr>
+          <td>SAMPLE_POLLING_MSECS</td>
+          <td><a id="SAMPLE_POLLING_MSECS"></a></td>
+        </tr>
+        <tr>
+          <td>MAX_INTERSPEECH_SILENCE_MSECS</td>
+          <td><a id="MAX_INTERSPEECH_SILENCE_MSECS"></a></td>
+        </tr>
+        <tr>
+          <td>MIN_SIGNAL_DURATION</td>
+          <td><a id="MIN_SIGNAL_DURATION"></a></td>
+        </tr>
+        <tr>
+          <td>VOLUME_SIGNAL</td>
+          <td><a id="VOLUME_SIGNAL"></a></td>
+        </tr>
+        <tr>
+          <td>VOLUME_SILENCE</td>
+          <td><a id="VOLUME_SILENCE"></a></td>
+        </tr>
+        <tr>
+          <td>VOLUME_MUTE</td>
+          <td><a id="VOLUME_MUTE"></a></td>
+        </tr>
+        <tr>
+          <td>MIN_AVERAGE_SIGNAL_VOLUME</td>
+          <td><a id="MIN_AVERAGE_SIGNAL_VOLUME"></a></td>
+        </tr>
+    </table>
+    </div>
+ 
+        
+<script>
+    
+/*    
+(function() { 
+	var script = document.createElement('script');
+    // script.crossOrigin = 'anonymous';
+	script.setAttribute('src', 'https://haley-saas-dev-server.vital.ai/iframe/kmmxzyificnqkrmc/index.js');
+	document.body.append(script);
+})();
+
+*/
+    
+
+</script>
+     
+ 
+    
+     
+    
+<script>
+        
+document.addEventListener('DOMContentLoaded', function () {
+  var checkbox = document.querySelector('input[type="checkbox"]');
+
+  checkbox.addEventListener('change', function () {
+    if (checkbox.checked) {
+     
+      console.log('Checked');
+        
+        var startButton = document.querySelector("#root > div > div.buttonStart");
+
+        console.log(startButton);
+        startButton.click();
+        
+        
+        
+        
+    } else {
+     
+      console.log('Not checked');
+        
+            var stopButton = document.querySelector("#root > div > div.buttonStop");
+
+            console.log(stopButton);
+            stopButton.click(); 
+        
+           
+        
+    }
+  });
+});        
+        
+  </script>  
+    
+    
+    
+       <script src="js/apiKey.js"></script>
+       
+    
+    <script src="js/volume-meter.js"></script>
+    <script type="module" src="js/audioDetectionConfig.js"></script>
+    <script type="module" src="js/audioDetection.js"></script>
+    <script type="module" src="js/audioStream.js"></script>
+
+    <script type="module" src="js/demoAudioRecorder.js"></script>
+    <script type="module" src="js/demoAudioDetectionListeners.js"></script>
+    <script type="module" src="js/demo.js"></script>
+     
+
+    
+    
 
     <script src="flat-ui/js/bootstrap.min.js"></script>
     <script src="common-files/js/modernizr.custom.js"></script>
@@ -296,9 +548,6 @@
     <script src="common-files/js/froogaloop.min.js"></script>
     <script src="common-files/js/jquery.scrollTo-1.4.3.1-min.js"></script>
     <script src="common-files/js/startup-kit.js"></script>
-    <!-- <script type="text/javascript" src="/js/navigo.js"></script> -->
-    <!-- <script type="text/javascript" src="/js/globals.js"></script> -->
-    <!-- <script type="text/javascript" src="/js/index.js"></script> -->
     
     
   </body>
