@@ -78,6 +78,9 @@ class HaleyWakeWordApp {
  
 window.HaleyWakeWordApp = HaleyWakeWordApp;
 
-const app = new HaleyWakeWordApp();
+const wakeWordApp = new HaleyWakeWordApp();
 
-app.render();
+wakeWordApp.render();
+
+
+
