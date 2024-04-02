@@ -3367,7 +3367,7 @@ section * {
   color: #16191c;
 }
 .header-11-sub .background, .header-1-sub .background {
-  background-image: url("../../../img/bg.jpg");
+  /* background-image: url("../../../img/bg.jpg"); */
   opacity: 75;
   filter: alpha(opacity=7500);
   opacity: 0.75;

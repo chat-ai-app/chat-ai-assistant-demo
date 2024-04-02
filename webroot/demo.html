@@ -50,8 +50,7 @@
 
   gtag('config', 'G-VBXT5RXRV2');
 </script>        
- 
-		
+	
 <script type="text/javascript" src="common-files/js/jquery-1.10.2.min.js"></script>
 		        
 <style> body { margin: 0; } </style>
@@ -122,12 +121,18 @@ input:checked + .slider:before {
 </head>
 
 <body>
-        
+   
+    
+<script src="https://cdnjs.cloudflare.com/ajax/libs/RecordRTC/5.6.2/RecordRTC.js"></script>
+    
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.7/dist/bundle.min.js"></script>
+
+    
     <div class="page-wrapper">   
 
     <a name="demo"></a>
             
-    <!-- header-1 -->
     <header class="header-1">
         <div class="container">
         <div class="row">
@@ -162,7 +167,6 @@ input:checked + .slider:before {
         </div>
         </div>
     </header>
-      
       
     <!-- needed for top menu to be overtop content -->    
     <section class="header-1-sub bg-midnight-blue" style="height: 0px">
@@ -220,11 +224,8 @@ input:checked + .slider:before {
             </p>   
                 
             </div>
-            
-            <!-- add widget here -->
-    
+                
         </div>
-
 
         </div>
         </div>
@@ -269,7 +270,6 @@ input:checked + .slider:before {
       
 <a name="contact"></a>
           
-    <!-- contacts-2 -->
       <section class="contacts-2">
         <div class="container">
           <div class="row">
@@ -321,8 +321,7 @@ input:checked + .slider:before {
                 <nav>
                     <h6>Haley AI</h6>
                     <ul>
-                        <li><a target="_blank" href="https://www.haley.ai/">Haley.ai</li>
-                        
+                        <li><a target="_blank" href="https://www.haley.ai/">Haley.ai</a></li>  
                     </ul>
                 </nav>
             </div>
@@ -338,136 +337,682 @@ input:checked + .slider:before {
             </div>
         </div>
             
-        <div style="text-align: center;"> Copyright © 2023 Vital AI, LLC </div>
+        <div style="text-align: center;"> Copyright © 2024 Vital AI, LLC </div>
  
     </div>
     
 </footer>
         
 </div>
-        
-<script src="https://unpkg.com/eventemitter3@4.0.7/umd/eventemitter3.min.js"></script>
   
-<div id="root">
+ 
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
 
-<div class="App"></div>
+<script>
+/*
+function float32ToInt16(buffer) {
+    let int16Buffer = new Int16Array(buffer.length);
+    for (let i = 0; i < buffer.length; i++) {
+        int16Buffer[i] = Math.max(-1, Math.min(1, buffer[i])) * 0x7FFF;
+    }
+    return int16Buffer;
+}
+*/
     
-</div>
+function float32ToInt16(buffer) {
+    let int16Buffer = new Uint16Array(buffer.length);
+    for (let i = 0; i < buffer.length; i++) {
+        int16Buffer[i] = Math.max(-32768, Math.min(32767, buffer[i] * 32768));
+    }
+    return int16Buffer;
+}    
+    
+    
+function float32ToNormalized(buffer) {
+    
+    let float32Buffer = new Float32Array(buffer.length);
+    
+    console.log(buffer);
+    
+    for (let i = 0; i < buffer.length; i++) {
+        
+        // float32Buffer[i] = Math.max(-32768, Math.min(32767, buffer[i] * 32768));
+        
+        // float32Buffer[i] = buffer[i];
+        
+        float32Buffer[i] = Math.round( buffer[i] * 32767 );
+        float32Buffer[i] = Math.max(-32768, Math.min(32767, float32Buffer[i]));
+        
+    }
+    
+    console.log(float32Buffer);
+
+    return float32Buffer;
+}      
+    
+ 
+    
+    
+  function segmentAndReshapeAudioData(audioData) {
+      
+    const segmentSize = 16 * 96;
+      
+    const numSegments = Math.ceil(audioData.length / segmentSize);
+    
+    const reshapedSegments = [];
+
+    for (let i = 0; i < numSegments; i++) {
+        // Extract segment
+        const start = i * segmentSize;
+        const end = start + segmentSize;
+        let segment = audioData.slice(start, end);
+
+        // Pad the segment with zeros if necessary
+        
+        if (segment.length < segmentSize) {
+            
+            segment = new Float32Array([...segment, ...new Float32Array(segmentSize - 
+            segment.length)]);
+        }
+        
+        
+        reshapedSegments.push(segment);
+    }
+
+    return reshapedSegments;
+}
+  
+function squeezeArray(array) {
+    let result = array;
+    
+    while (result.length === 1 && Array.isArray(result[0])) {
+        result = result[0];
+    }
+    
+    return result;
+}
+    
+async function embeddingModelPredict(x) {
+    
+    const session = await ort.InferenceSession.create('./models/embedding_model.onnx');
+
+    return session.run({ input_1: x }).then(output => {
+        
+        const outputTensor = output[Object.keys(output)[0]];
+        
+        const tensorArray = outputTensor.toArray();
+        
+        const squeezed = squeezeArray(tensorArray);
+
+        return squeezed;
+    });
+    
+}
+    
+
+async function melspecModelPredict(x) {
+    
+    const session = await ort.InferenceSession.create('./models/melspectrogram.onnx');
+
+    const tensor = new ort.Tensor('float32', new Float32Array(x), [1, x.length]);
+    
+    return session.run({ input: tensor }).then(output => {
+        
+        const outputTensor = output[Object.keys(output)];
+        
+        return outputTensor;
+    });
+    
+}
+        
+
+async function wakeWordPredict(x) {
+    
+    const session = await ort.InferenceSession.create('./models/hey_haley.onnx');
+
+    const inputTensor = new ort.Tensor('float32', x, [1, 16, 96]);
+
+    const outputMap = await session.run({ 'onnx::Flatten_0': inputTensor });
+
+    return outputMap;
+}
+                                       
+                                    
+    
+async function predictWithONNX(audioData) {
+    
+    const session = await ort.InferenceSession.create('./models/hey_haley.onnx');
+    
+  // const batchedAudioData = new Float32Array(audioData.length);
+  // batchedAudioData.set(audioData);
+  // const inputTensor = new ort.Tensor('float32', batchedAudioData, [1, audioData.length, 1]);
+
+
+    //const int16AudioData = float32ToInt16(audioData);
+
+    const normalizedData = float32ToNormalized(audioData);
+    
+    const audioSegments = segmentAndReshapeAudioData(normalizedData);
+
+    for (const segment of audioSegments) {
+
+        // const inputTensor = new ort.Tensor(segment, 'int16', [1, 16, 96]);
+        
+        const inputTensor = new ort.Tensor('float32', segment, [1, 16, 96]);
+
+        const outputMap = await session.run({ 'onnx::Flatten_0': inputTensor });
+
+        // const outputTensor = outputMap.values().next().value;
+
+        console.log(outputMap);
+            
+        var output = outputMap['39'];
+        
+        // console.log('39: ', output);
+        
+        var cpuData = output['cpuData'];
+        
+        var score = cpuData[0];
+        
+        // console.log('Score: ', score);
+        
+        if(score > 0.5) {
+            
+            console.log('Wake Word Detected Score: ', score);
+        }
+        
+        // console.log(outputTensor);
+
+    }
+            
+    return [];
+    
+  // const inputTensor = reshapeAudioForModel(audioData);
+        
+  // const feeds = { 'onnx::Flatten_0': inputTensor };
+
+  // const inputTensor = new ort.Tensor('float32', audioData, [1, audioData.length]);
+  // const feeds = { 'onnx::Flatten_0': inputTensor };
+  
+  // const results = await session.run(feeds);
+ //  return results;
+}    
+   
+    
+</script>
+   
+    
+<script type="module">
+
+import { loadPyodide } from 'https://cdn.jsdelivr.net/pyodide/v0.18.1/full/pyodide.mjs';
+
+async function loadPyodideAndRunPython() {
+        
+    let pyodide = await loadPyodide({
+        indexURL : "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/"
+    });
+    
+    await pyodide.loadPackage('numpy');
+    
+    await pyodide.loadPackage('micropip');
+        
+    await pyodide.runPythonAsync(`
+        import micropip
+        await micropip.install('cmudict')
+    `);
+    
+    // Define a function to load and run a Python file
+    async function loadPythonFile(pyodide, filePath) {
+      const response = await fetch(filePath);
+      const pythonCode = await response.text();
+      pyodide.runPython(pythonCode);
+    }
+
+    await loadPythonFile(pyodide, './python/vad.py');
+
+    await loadPythonFile(pyodide, './python/pronouncing.py');
+
+    await loadPythonFile(pyodide, './python/init.py');
+
+    await loadPythonFile(pyodide, './python/data.py');
+
+    await loadPythonFile(pyodide, './python/utils.py');
+
+    await loadPythonFile(pyodide, './python/model.py');
+    
+    let wakeWordModel = pyodide.runPython(`
+
+      model_path = './models/hey_haley.onnx'
+      
+      inference_framework = 'onnx'
+
+      owwModel = Model(wakeword_models=[model_path], inference_framework=inference_framework)
+
+      owwModel
+    `);
+    
+     console.log(wakeWordModel);
+    
+    window.wakeWordModel = wakeWordModel;
+    
+    
+  }
+
+loadPyodideAndRunPython().catch(console.error);
+        
+</script>    
+    
+<script>
+   
+window.whisper_worker = null;
+
+window.whisper_worker_busy = false;
+
+let whisper_worker_error_count = 0;
+    
+function create_whisper_worker(){
+    
+	console.log("in create_whisper_worker");
+	
+	window.whisper_worker = null;
+	
+    window.whisper_worker = new Worker('./js/whisper_worker.js', {
+	  type: 'module'
+	});
+
+	console.log("whisper_module: window.whisper_worker: ", window.whisper_worker);
+	
+	window.whisper_worker.addEventListener('message', e => {
+		
+        //console.log("whisper_module: received message from whisper_worker: ", e.data);
+        
+		if(typeof e.data.status == 'string'){
+            
+			if(e.data.status == 'progress'){
+				
+                // console.log("whisper worker sent download percentage: ", e.data.progress);
+				
+                // let whisper_progress_el = document.getElementById('download-progress-whisper');
+				/*
+                if(whisper_progress_el == null){
+					console.error("whisper (down)load progress element is missing");
+					// add_chat_message("whisper",'download_progress#setting---');
+				}
+				else{
+					//console.log("updating whisper (down)load progress");
+					whisper_progress_el.value = e.data.progress / 100;
+				}
+                */
+                
+				
+			}
+			else if(e.data.status == 'ready'){
+				console.log("whisper worker sent ready message");
+				window.whisper_worker_busy = false;
+                
+				// add_chat_message("whisper",get_translation('Voice_recognition_has_loaded'));
+				
+                // let whisper_progress_el = document.getElementById('download-progress-whisper');
+				
+                /*
+                if(whisper_progress_el){
+					whisper_progress_el.classList.add('download-complete-chat-message');
+				}
+				else{
+					console.error("whisper became ready, but cannot find loading progress indicator element");
+				}
+                */
+                
+                
+			}
+			else if(e.data.status == 'initiate'){
+				console.log("whisper worker sent initiate message");
+			}
+			else if(e.data.status == 'download'){
+				console.log("whisper worker sent download message");
+				// add_chat_message("whisper","(down)loading: " + e.data.file);
+			}
+			
+			else if(e.data.status == 'update'){
+				if(typeof e.data.data == 'object' && e.data.data != null && e.data.data.length){
+					// set_chat_status(e.data.data[0],2);
+				}
+				
+			}
+			
+			else if(e.data.status == 'complete'){
+				window.whisper_worker_busy = false;
+				console.log('GOT WHISPER COMPLETE.  e.data: ', e.data);
+				console.log('GOT WHISPER COMPLETE.  e.data.transcript: ', e.data.transcript);
+				console.log('GOT WHISPER COMPLETE.  e.data.task: ', e.data.task);
+				
+				if(e.data.transcript == null){
+					console.warn("whisper recognition failed. If this is the first run, that's normal.");
+					// set_state(LISTENING);
+				}
+				else if(typeof e.data.transcript != 'undefined'){
+					console.log("whisper returned transcription text: ", e.data.transcript);
+					
+					if(Array.isArray(e.data.transcript)){
+						console.log("typeof transcription is array");
+					}
+					else if(typeof e.data.transcript == 'object'){
+						if(typeof e.data.transcript.text == 'string'){
+							console.log("GOT TEXT: ", e.data.transcript.text);
+						}
+					}
+				}
+				else{
+					console.log("transcript was not in whisper e.data");
+				}
+				
+				// add_chat_message("whisper","(down)loading: " + e.data.file);
+			}
+			else{
+				console.log("whisper worker sent a content message");
+				window.whisper_worker_busy = false;
+				
+				if(e.data.data == null){
+					console.warn("whisper recognition failed. If this is the first run, that's normal.");
+					// set_state(LISTENING);
+				}
+			}
+		}
+			
+			if(window.enable_microphone == false){
+				console.log("whisper worker returned audio file, but in the meantime enable_microphone was disabled. Throwing away the data.");
+			}
+			else{
+				
+				/*
+			
+				if(window.whisper_queue.length){
+					console.log("whisper worker done, but there is more work to do. Sentences still in whisper_queue: ", window.whisper_queue.length);
+					let next_sentence = window.whisper_queue[0][0] + window.whisper_queue[0][1]; // sentence plus punctuation mark
+					window.whisper_queue.splice(0,1);
+				
+				
+					whisper_worker.postMessage({'whisper_counter':window.whisper_counter,'sentence':next_sentence});
+					window.whisper_counter++;
+				}
+				else{
+					console.log("whisper worker was done, and there are no more sentences in the whisper queue. Worker is now idle.");
+					window.whisper_worker_busy = false;
+				}
+				*/
+			}
+	
+	});
+
+
+	window.whisper_worker.addEventListener('error', (error) => {
+		console.error("ERROR: whisper_worker sent error. terminating!. Error was: ", error, error.message);
+		whisper_worker_error_count++;
+		
+		window.whisper_worker.terminate();
+		window.whisper_worker_busy = false;
+		if(typeof error != 'undefined' && whisper_worker_error_count < 10){
+			setTimeout(() => {
+				console.log("attempting to restart whisper worker");
+				create_whisper_worker();
+			},1000);
+		}
+		else{
+			console.error("whisper_worker errored out");
+		}
+	});
+}
+
+// create whisper worker
+create_whisper_worker();
+
+
+//
+//  Send audio buffer to whisper worker
+//
+function do_whisper_web(task,language=null){
+	console.log("in do_whisper_web. task: ", task);
+	
+	if(window.whisper_worker_busy){
+		console.error("do_whisper_web was called while whisper worker was busy. Aborting.");
+		return
+	}
+	
+	if(typeof task.recorded_audio == 'undefined'){
+		console.error("do_whisper_web: task did not contain recorded_audio. Aborting.");
+		return
+	}
+	
+	task.state == 'stt_in_progress';
+	
+	let multilingual = false;
+    
+	if(typeof language == 'string'){
+		if(language != 'en'){
+			multilingual = true;
+		}
+	}
+    
+	const quantized = false;
+	
+    const model = "Xenova/whisper-tiny";
+	
+	const subtask = null;
+	
+	console.log("do_whisper_web: sending audio to whisper worker: ", task.recorded_audio);
+	
+    window.whisper_worker.postMessage({
+        task:task,
+        model,
+        multilingual,
+        quantized,
+        subtask: multilingual ? subtask : null,
+        language:
+            multilingual && language !== "auto" ? language : null,
+    });
+
+}
+window.do_whisper_web = do_whisper_web;
+    
+    
+</script>    
+    
     
 <script>
     
-    (async function () {
-        await import('./lib/bumblebee.js');
-        await import('./js/app.js');
-    })();
+  var myvad = null;    
     
-</script>
+  async function main() {
+      
+    myvad = await vad.MicVAD.new({
         
-    <button id="start">START</button>
-    <button id="startconsoledebug">enable console logs</button>
-    <button id="stopconsoledebug">disable console logs</button>
-    <button id="stop">STOP</button>
+      onSpeechStart: () => {
+        console.log("Speech start detected")
+      },
+        
+      onSpeechEnd: (audio) => {
+          
+        console.log("Speech end detected")
 
-    <div>
-      REAL-TIME EVENTS/STATUS 
-      <table>
-        <tr>
-          <th>Status</th>
-          <th>Value</th>
-        </tr>
-        <tr>
-          <td>microphone</td>
-          <td id="microphonestatuscell"><a id="microphonestatus"></a></td>
-        </tr>
-        <tr>
-          <td>audio</td>
-          <td id="audiostatuscell"><a id="audiostatus"></a></td>
-        </tr>
-        <tr>
-          <td>speech<br>recording</td>
-          <td id="recordingcell"><a id="recording"></a><p><audio id="audio" controls></audio></p></td>
-        </tr>
-    </table>
-    </div>
+          
+        // do something with `audio` (Float32Array of audio samples at sample rate 16000)...
+          
+          
+        // predictWithONNX(audio);
+          
+        var task = {};
         
-    <div>
-      CONFIGURATION PARAMETERS
-      <table>
-        <tr>
-          <th>Parameter</th>
-          <th>Value</th>
-        </tr>
-        <tr>
-          <td>SAMPLE_POLLING_MSECS</td>
-          <td><a id="SAMPLE_POLLING_MSECS"></a></td>
-        </tr>
-        <tr>
-          <td>MAX_INTERSPEECH_SILENCE_MSECS</td>
-          <td><a id="MAX_INTERSPEECH_SILENCE_MSECS"></a></td>
-        </tr>
-        <tr>
-          <td>MIN_SIGNAL_DURATION</td>
-          <td><a id="MIN_SIGNAL_DURATION"></a></td>
-        </tr>
-        <tr>
-          <td>VOLUME_SIGNAL</td>
-          <td><a id="VOLUME_SIGNAL"></a></td>
-        </tr>
-        <tr>
-          <td>VOLUME_SILENCE</td>
-          <td><a id="VOLUME_SILENCE"></a></td>
-        </tr>
-        <tr>
-          <td>VOLUME_MUTE</td>
-          <td><a id="VOLUME_MUTE"></a></td>
-        </tr>
-        <tr>
-          <td>MIN_AVERAGE_SIGNAL_VOLUME</td>
-          <td><a id="MIN_AVERAGE_SIGNAL_VOLUME"></a></td>
-        </tr>
-    </table>
-    </div>
- 
+        task.recorded_audio = audio;
+          
+        do_whisper_web(task);
+          
+      },
+        
+        onFrameProcessed: (probabilities) => {
+            
+            // {isSpeech: float; notSpeech: float}
+            
+            let isSpeech = probabilities.isSpeech;
+            
+            let notSpeech = probabilities.notSpeech;
+            
+            // var wakeWordModel = window.wakeWordModel;
+            
+            // wakeWordModel.vad.append(isSpeech);
+            
+            if(isSpeech > 0.1) {
+                // console.log("Is Speech: ", isSpeech);
+            }
+        } 
+        
+    })
+  }
+    
+  main();
+    
+  
+let audioBuffer = [];
+let sampleRate = 16000;
+let desiredSampleCount = 1280;
+let microphone;
+let recorder; 
+    
+    
+    
+    
+</script>    
+    
+    
 <script>
         
 document.addEventListener('DOMContentLoaded', function () {
+    
   var checkbox = document.querySelector('input[type="checkbox"]');
 
   checkbox.addEventListener('change', function () {
+    
     if (checkbox.checked) {
      
       console.log('Checked');
+    
+        myvad.start()
         
-        var startButton = document.querySelector("#root > div > div.buttonStart");
+        
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(function(stream) {
+    
+                microphone = stream;
+            /*
+                recorder = RecordRTC(microphone, {
+    type: 'audio',
+    //mimeType: 'audio/wav',
+    desiredSampRate: sampleRate,
+    timeSlice: 40,
+    ondataavailable: function(blob) {
+        
+        //  && blob.type === 'audio/wav'
+        if (blob.size > 0) {
+        
+        console.log('Received blob is valid');
+    
+        let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        let reader = new FileReader();
+        
+        reader.onload = function() {
+            
+            audioContext.decodeAudioData(reader.result, function(buffer) {
+                
+                let samples = buffer.getChannelData(0);
+                
+                audioBuffer = audioBuffer.concat(Array.from(samples));
+                
+                if (audioBuffer.length >= desiredSampleCount) {
+                    
+                    console.log(`Processing ${desiredSampleCount} samples`);
 
-        console.log(startButton);
-        startButton.click();
+                    audioBuffer = audioBuffer.slice(desiredSampleCount);
+                }
+            });
+        };
+        
+        reader.readAsArrayBuffer(blob);
+    
+    } else {
+            console.log('Received blob is not in the expected format or is empty');
+            console.log('Blob size: ', blob.size );
+            console.log('Blob type: ', blob.type );
+        }    
+    }
+});
+           */
+            
+        
+           // recorder.startRecording(); 
+            
+    
+        })
+            .catch(function(err) {
+    
+                console.log('Failed to get microphone access', err);
+        });
+        
+        
         
     } else {
      
       console.log('Not checked');
+    
+        myvad.pause()
         
-            var stopButton = document.querySelector("#root > div > div.buttonStop");
-
-            console.log(stopButton);
-            stopButton.click(); 
+        if(recorder != null) {
+        
+            recorder.stopRecording(); 
+        
+            recorder = null;
+        
+        }
+        
+        
+        
     }
   });
 });        
+       
+    
+let debounceTimer;
+    
+function playSound() {
+    const audio = new Audio('/sounds/dingsound.mp3');
+    audio.play();
+}
+    
+function handleEvent(event, threshold = 0.2, debounceTime = 1000){
         
-  </script>  
+    let score = event.detail;
     
-    <script src="js/apiKey.js"></script>
+    console.log('Hey Haley Score: ', score);
     
-    <script src="js/volume-meter.js"></script>
-    <script type="module" src="js/audioDetectionConfig.js"></script>
-    <script type="module" src="js/audioDetection.js"></script>
-    <script type="module" src="js/audioStream.js"></script>
+    if (debounceTimer) return;
+  
+    if (score > threshold) {
+        playSound();
+        debounceTimer = setTimeout(() => {
+            clearTimeout(debounceTimer);
+            debounceTimer = null;
+        }, debounceTime);
+    }
+}
 
-    <script type="module" src="js/demoAudioRecorder.js"></script>
-    <script type="module" src="js/demoAudioDetectionListeners.js"></script>
-    <script type="module" src="js/demo.js"></script>
-      
+
+window.addEventListener('wakeWordEvent', handleEvent);
+
+    
+    
+    
+    
+  </script>  
+
     <script src="flat-ui/js/bootstrap.min.js"></script>
     <script src="common-files/js/modernizr.custom.js"></script>
     <script src="common-files/js/page-transitions.js"></script>

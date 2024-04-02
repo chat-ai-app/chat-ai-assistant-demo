@@ -1,6 +1,22 @@
 // Import BumbleBee
 // import BumbleBee from 'bumblebee-hotword';
- 
+
+const worker = new Worker(new URL("worker.js", import.meta.url), {
+        type: "module",
+    });
+
+
+function whisperMessageHandler(event) {
+    
+    
+    
+    
+}
+
+worker.addEventListener("message", whisperMessageHandler);
+
+
+
 const bumblebee = window.BumbleBee;
 
 // Set up BumbleBee instance
