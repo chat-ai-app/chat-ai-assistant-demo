@@ -122,12 +122,12 @@ input:checked + .slider:before {
 
 <body>
    
-    
-<script src="https://cdnjs.cloudflare.com/ajax/libs/RecordRTC/5.6.2/RecordRTC.js"></script>
-    
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.7/dist/bundle.min.js"></script>
 
+<!--
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+-->
     
     <div class="page-wrapper">   
 
@@ -223,8 +223,7 @@ input:checked + .slider:before {
             <p><br><br>
             </p>   
                 
-            </div>
-                
+            </div>    
         </div>
 
         </div>
@@ -345,263 +344,6 @@ input:checked + .slider:before {
         
 </div>
   
- 
-<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
-
-<script>
-/*
-function float32ToInt16(buffer) {
-    let int16Buffer = new Int16Array(buffer.length);
-    for (let i = 0; i < buffer.length; i++) {
-        int16Buffer[i] = Math.max(-1, Math.min(1, buffer[i])) * 0x7FFF;
-    }
-    return int16Buffer;
-}
-*/
-    
-function float32ToInt16(buffer) {
-    let int16Buffer = new Uint16Array(buffer.length);
-    for (let i = 0; i < buffer.length; i++) {
-        int16Buffer[i] = Math.max(-32768, Math.min(32767, buffer[i] * 32768));
-    }
-    return int16Buffer;
-}    
-    
-    
-function float32ToNormalized(buffer) {
-    
-    let float32Buffer = new Float32Array(buffer.length);
-    
-    console.log(buffer);
-    
-    for (let i = 0; i < buffer.length; i++) {
-        
-        // float32Buffer[i] = Math.max(-32768, Math.min(32767, buffer[i] * 32768));
-        
-        // float32Buffer[i] = buffer[i];
-        
-        float32Buffer[i] = Math.round( buffer[i] * 32767 );
-        float32Buffer[i] = Math.max(-32768, Math.min(32767, float32Buffer[i]));
-        
-    }
-    
-    console.log(float32Buffer);
-
-    return float32Buffer;
-}      
-    
- 
-    
-    
-  function segmentAndReshapeAudioData(audioData) {
-      
-    const segmentSize = 16 * 96;
-      
-    const numSegments = Math.ceil(audioData.length / segmentSize);
-    
-    const reshapedSegments = [];
-
-    for (let i = 0; i < numSegments; i++) {
-        // Extract segment
-        const start = i * segmentSize;
-        const end = start + segmentSize;
-        let segment = audioData.slice(start, end);
-
-        // Pad the segment with zeros if necessary
-        
-        if (segment.length < segmentSize) {
-            
-            segment = new Float32Array([...segment, ...new Float32Array(segmentSize - 
-            segment.length)]);
-        }
-        
-        
-        reshapedSegments.push(segment);
-    }
-
-    return reshapedSegments;
-}
-  
-function squeezeArray(array) {
-    let result = array;
-    
-    while (result.length === 1 && Array.isArray(result[0])) {
-        result = result[0];
-    }
-    
-    return result;
-}
-    
-async function embeddingModelPredict(x) {
-    
-    const session = await ort.InferenceSession.create('./models/embedding_model.onnx');
-
-    return session.run({ input_1: x }).then(output => {
-        
-        const outputTensor = output[Object.keys(output)[0]];
-        
-        const tensorArray = outputTensor.toArray();
-        
-        const squeezed = squeezeArray(tensorArray);
-
-        return squeezed;
-    });
-    
-}
-    
-
-async function melspecModelPredict(x) {
-    
-    const session = await ort.InferenceSession.create('./models/melspectrogram.onnx');
-
-    const tensor = new ort.Tensor('float32', new Float32Array(x), [1, x.length]);
-    
-    return session.run({ input: tensor }).then(output => {
-        
-        const outputTensor = output[Object.keys(output)];
-        
-        return outputTensor;
-    });
-    
-}
-        
-
-async function wakeWordPredict(x) {
-    
-    const session = await ort.InferenceSession.create('./models/hey_haley.onnx');
-
-    const inputTensor = new ort.Tensor('float32', x, [1, 16, 96]);
-
-    const outputMap = await session.run({ 'onnx::Flatten_0': inputTensor });
-
-    return outputMap;
-}
-                                       
-                                    
-    
-async function predictWithONNX(audioData) {
-    
-    const session = await ort.InferenceSession.create('./models/hey_haley.onnx');
-    
-  // const batchedAudioData = new Float32Array(audioData.length);
-  // batchedAudioData.set(audioData);
-  // const inputTensor = new ort.Tensor('float32', batchedAudioData, [1, audioData.length, 1]);
-
-
-    //const int16AudioData = float32ToInt16(audioData);
-
-    const normalizedData = float32ToNormalized(audioData);
-    
-    const audioSegments = segmentAndReshapeAudioData(normalizedData);
-
-    for (const segment of audioSegments) {
-
-        // const inputTensor = new ort.Tensor(segment, 'int16', [1, 16, 96]);
-        
-        const inputTensor = new ort.Tensor('float32', segment, [1, 16, 96]);
-
-        const outputMap = await session.run({ 'onnx::Flatten_0': inputTensor });
-
-        // const outputTensor = outputMap.values().next().value;
-
-        console.log(outputMap);
-            
-        var output = outputMap['39'];
-        
-        // console.log('39: ', output);
-        
-        var cpuData = output['cpuData'];
-        
-        var score = cpuData[0];
-        
-        // console.log('Score: ', score);
-        
-        if(score > 0.5) {
-            
-            console.log('Wake Word Detected Score: ', score);
-        }
-        
-        // console.log(outputTensor);
-
-    }
-            
-    return [];
-    
-  // const inputTensor = reshapeAudioForModel(audioData);
-        
-  // const feeds = { 'onnx::Flatten_0': inputTensor };
-
-  // const inputTensor = new ort.Tensor('float32', audioData, [1, audioData.length]);
-  // const feeds = { 'onnx::Flatten_0': inputTensor };
-  
-  // const results = await session.run(feeds);
- //  return results;
-}    
-   
-    
-</script>
-   
-    
-<script type="module">
-
-import { loadPyodide } from 'https://cdn.jsdelivr.net/pyodide/v0.18.1/full/pyodide.mjs';
-
-async function loadPyodideAndRunPython() {
-        
-    let pyodide = await loadPyodide({
-        indexURL : "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/"
-    });
-    
-    await pyodide.loadPackage('numpy');
-    
-    await pyodide.loadPackage('micropip');
-        
-    await pyodide.runPythonAsync(`
-        import micropip
-        await micropip.install('cmudict')
-    `);
-    
-    // Define a function to load and run a Python file
-    async function loadPythonFile(pyodide, filePath) {
-      const response = await fetch(filePath);
-      const pythonCode = await response.text();
-      pyodide.runPython(pythonCode);
-    }
-
-    await loadPythonFile(pyodide, './python/vad.py');
-
-    await loadPythonFile(pyodide, './python/pronouncing.py');
-
-    await loadPythonFile(pyodide, './python/init.py');
-
-    await loadPythonFile(pyodide, './python/data.py');
-
-    await loadPythonFile(pyodide, './python/utils.py');
-
-    await loadPythonFile(pyodide, './python/model.py');
-    
-    let wakeWordModel = pyodide.runPython(`
-
-      model_path = './models/hey_haley.onnx'
-      
-      inference_framework = 'onnx'
-
-      owwModel = Model(wakeword_models=[model_path], inference_framework=inference_framework)
-
-      owwModel
-    `);
-    
-     console.log(wakeWordModel);
-    
-    window.wakeWordModel = wakeWordModel;
-    
-    
-  }
-
-loadPyodideAndRunPython().catch(console.error);
-        
-</script>    
-    
 <script>
    
 window.whisper_worker = null;
@@ -624,7 +366,7 @@ function create_whisper_worker(){
 	
 	window.whisper_worker.addEventListener('message', e => {
 		
-        //console.log("whisper_module: received message from whisper_worker: ", e.data);
+        // console.log("whisper_module: received message from whisper_worker: ", e.data);
         
 		if(typeof e.data.status == 'string'){
             
@@ -639,7 +381,7 @@ function create_whisper_worker(){
 					// add_chat_message("whisper",'download_progress#setting---');
 				}
 				else{
-					//console.log("updating whisper (down)load progress");
+					// console.log("updating whisper (down)load progress");
 					whisper_progress_el.value = e.data.progress / 100;
 				}
                 */
@@ -647,10 +389,11 @@ function create_whisper_worker(){
 				
 			}
 			else if(e.data.status == 'ready'){
-				console.log("whisper worker sent ready message");
-				window.whisper_worker_busy = false;
+				
+                console.log("whisper worker sent ready message");
+				
+                window.whisper_worker_busy = false;
                 
-				// add_chat_message("whisper",get_translation('Voice_recognition_has_loaded'));
 				
                 // let whisper_progress_el = document.getElementById('download-progress-whisper');
 				
@@ -670,13 +413,16 @@ function create_whisper_worker(){
 			}
 			else if(e.data.status == 'download'){
 				console.log("whisper worker sent download message");
-				// add_chat_message("whisper","(down)loading: " + e.data.file);
+                
 			}
 			
 			else if(e.data.status == 'update'){
-				if(typeof e.data.data == 'object' && e.data.data != null && e.data.data.length){
-					// set_chat_status(e.data.data[0],2);
+				if(typeof e.data.data == 'object' && e.data.data != null && e.data.data.length) {
+                    
+                // update
+                   
 				}
+                
 				
 			}
 			
@@ -688,6 +434,7 @@ function create_whisper_worker(){
 				
 				if(e.data.transcript == null){
 					console.warn("whisper recognition failed. If this is the first run, that's normal.");
+                    
 					// set_state(LISTENING);
 				}
 				else if(typeof e.data.transcript != 'undefined'){
@@ -724,22 +471,7 @@ function create_whisper_worker(){
 			}
 			else{
 				
-				/*
-			
-				if(window.whisper_queue.length){
-					console.log("whisper worker done, but there is more work to do. Sentences still in whisper_queue: ", window.whisper_queue.length);
-					let next_sentence = window.whisper_queue[0][0] + window.whisper_queue[0][1]; // sentence plus punctuation mark
-					window.whisper_queue.splice(0,1);
 				
-				
-					whisper_worker.postMessage({'whisper_counter':window.whisper_counter,'sentence':next_sentence});
-					window.whisper_counter++;
-				}
-				else{
-					console.log("whisper worker was done, and there are no more sentences in the whisper queue. Worker is now idle.");
-					window.whisper_worker_busy = false;
-				}
-				*/
 			}
 	
 	});
@@ -814,7 +546,6 @@ function do_whisper_web(task,language=null){
 }
 window.do_whisper_web = do_whisper_web;
     
-    
 </script>    
     
     
@@ -833,13 +564,7 @@ window.do_whisper_web = do_whisper_web;
       onSpeechEnd: (audio) => {
           
         console.log("Speech end detected")
-
-          
-        // do something with `audio` (Float32Array of audio samples at sample rate 16000)...
-          
-          
-        // predictWithONNX(audio);
-          
+                    
         var task = {};
         
         task.recorded_audio = audio;
@@ -855,11 +580,7 @@ window.do_whisper_web = do_whisper_web;
             let isSpeech = probabilities.isSpeech;
             
             let notSpeech = probabilities.notSpeech;
-            
-            // var wakeWordModel = window.wakeWordModel;
-            
-            // wakeWordModel.vad.append(isSpeech);
-            
+                        
             if(isSpeech > 0.1) {
                 // console.log("Is Speech: ", isSpeech);
             }
@@ -869,17 +590,10 @@ window.do_whisper_web = do_whisper_web;
   }
     
   main();
-    
-  
-let audioBuffer = [];
-let sampleRate = 16000;
-let desiredSampleCount = 1280;
+   
 let microphone;
-let recorder; 
-    
-    
-    
-    
+
+  
 </script>    
     
     
@@ -902,77 +616,18 @@ document.addEventListener('DOMContentLoaded', function () {
             .then(function(stream) {
     
                 microphone = stream;
-            /*
-                recorder = RecordRTC(microphone, {
-    type: 'audio',
-    //mimeType: 'audio/wav',
-    desiredSampRate: sampleRate,
-    timeSlice: 40,
-    ondataavailable: function(blob) {
-        
-        //  && blob.type === 'audio/wav'
-        if (blob.size > 0) {
-        
-        console.log('Received blob is valid');
-    
-        let audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
-        let reader = new FileReader();
-        
-        reader.onload = function() {
             
-            audioContext.decodeAudioData(reader.result, function(buffer) {
-                
-                let samples = buffer.getChannelData(0);
-                
-                audioBuffer = audioBuffer.concat(Array.from(samples));
-                
-                if (audioBuffer.length >= desiredSampleCount) {
-                    
-                    console.log(`Processing ${desiredSampleCount} samples`);
-
-                    audioBuffer = audioBuffer.slice(desiredSampleCount);
-                }
-            });
-        };
-        
-        reader.readAsArrayBuffer(blob);
-    
-    } else {
-            console.log('Received blob is not in the expected format or is empty');
-            console.log('Blob size: ', blob.size );
-            console.log('Blob type: ', blob.type );
-        }    
-    }
-});
-           */
-            
-        
-           // recorder.startRecording(); 
-            
-    
         })
             .catch(function(err) {
     
                 console.log('Failed to get microphone access', err);
         });
         
-        
-        
     } else {
      
       console.log('Not checked');
     
         myvad.pause()
-        
-        if(recorder != null) {
-        
-            recorder.stopRecording(); 
-        
-            recorder = null;
-        
-        }
-        
         
         
     }
@@ -1006,11 +661,7 @@ function handleEvent(event, threshold = 0.2, debounceTime = 1000){
 
 
 window.addEventListener('wakeWordEvent', handleEvent);
-
-    
-    
-    
-    
+  
   </script>  
 
     <script src="flat-ui/js/bootstrap.min.js"></script>
