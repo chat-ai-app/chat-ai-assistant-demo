@@ -117,7 +117,81 @@ input:checked + .slider:before {
 }
         
 </style>          
-              
+    
+        
+        
+<style>
+        
+
+        textarea {
+            font-size: .8rem;
+            letter-spacing: 1px;
+        }
+
+        textarea {
+            display: block;
+            padding: 5px;
+            line-height: 1.5;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-shadow: 1px 1px 1px #999;
+        }
+
+        
+        .led-box {
+            height: 30px;
+            width: 25%;
+            margin: 10px 0;
+            display: inline;
+        }
+
+        .led-box p {
+            font-size: 12px;
+            text-align: center;
+            margin: 1em;
+        }
+
+        .led-red {
+            margin: 0 auto;
+            width: 24px;
+            height: 24px;
+            background-color: #F00;
+            border-radius: 50%;
+            box-shadow: rgba(0, 0, 0, 0.2) 0 -1px 7px 1px, inset #441313 0 -1px 9px, rgba(255, 0, 0, 0.5) 0 2px 12px;
+            -webkit-animation: blinkRed 0.5s infinite;
+            -moz-animation: blinkRed 0.5s infinite;
+            -ms-animation: blinkRed 0.5s infinite;
+            -o-animation: blinkRed 0.5s infinite;
+            animation: blinkRed 0.5s infinite;
+        }
+
+        @keyframes blinkRed {
+            from {
+                background-color: #F00;
+            }
+
+            50% {
+                background-color: #A00;
+                box-shadow: rgba(0, 0, 0, 0.2) 0 -1px 7px 1px, inset #441313 0 -1px 9px, rgba(255, 0, 0, 0.5) 0 2px 0;
+            }
+
+            to {
+                background-color: #F00;
+            }
+        }
+
+        .led-green {
+            margin: 0 auto;
+            width: 24px;
+            height: 24px;
+            background-color: #ABFF00;
+            border-radius: 50%;
+            box-shadow: rgba(0, 0, 0, 0.2) 0 -1px 7px 1px, inset #304701 0 -1px 9px, #89FF00 0 2px 12px;
+        }
+    </style>        
+        
+        
+        
 </head>
 
 <body>
@@ -125,6 +199,11 @@ input:checked + .slider:before {
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.7/dist/bundle.min.js"></script>
 
+<script src="/dist/vitalWakeWord.min.js"></script>
+
+<script type="module" src="/js/stt.js"></script>
+
+    
 <!--
 <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
 -->
@@ -217,9 +296,20 @@ input:checked + .slider:before {
                     <span class="slider round"></span>
                 </label>
            
+                
+                
+                
+                
             <p>Chat with powerful A.I. models.
             </p>           
-                   
+             
+                
+            <div id="listening">...
+            </div>     
+            
+            <div id="transcription">
+            </div>    
+                
             <p><br><br>
             </p>   
                 
@@ -343,326 +433,30 @@ input:checked + .slider:before {
 </footer>
         
 </div>
+    
+    
+ <hr />
+    <div>
+        <button id="start">Start hotword pipeline</button>
+        <button id="stop">Stop</button>
+    </div>
+    <hr />
+    
+    <div>
+        <label for="mic">Microphone options :</label>
+        <textarea id="mic" rows="10" cols="50"></textarea>
+    </div>
+    <hr />
+    <div>
+        <div class="led-box">
+            <div id="VADLed" class="led-green" style="display: none;"></div>
+        </div>
+        <label for="useVAD">Voice Activity Detection :</label>
+        <textarea id="VAD" rows="10" cols="50"></textarea>
+    </div>    
+    
   
-<script>
-   
-window.whisper_worker = null;
-
-window.whisper_worker_busy = false;
-
-let whisper_worker_error_count = 0;
-    
-function create_whisper_worker(){
-    
-	console.log("in create_whisper_worker");
-	
-	window.whisper_worker = null;
-	
-    window.whisper_worker = new Worker('./js/whisper_worker.js', {
-	  type: 'module'
-	});
-
-	console.log("whisper_module: window.whisper_worker: ", window.whisper_worker);
-	
-	window.whisper_worker.addEventListener('message', e => {
-		
-        // console.log("whisper_module: received message from whisper_worker: ", e.data);
-        
-		if(typeof e.data.status == 'string'){
-            
-			if(e.data.status == 'progress'){
-				
-                // console.log("whisper worker sent download percentage: ", e.data.progress);
-				
-                // let whisper_progress_el = document.getElementById('download-progress-whisper');
-				/*
-                if(whisper_progress_el == null){
-					console.error("whisper (down)load progress element is missing");
-					// add_chat_message("whisper",'download_progress#setting---');
-				}
-				else{
-					// console.log("updating whisper (down)load progress");
-					whisper_progress_el.value = e.data.progress / 100;
-				}
-                */
-                
-				
-			}
-			else if(e.data.status == 'ready'){
-				
-                console.log("whisper worker sent ready message");
-				
-                window.whisper_worker_busy = false;
-                
-				
-                // let whisper_progress_el = document.getElementById('download-progress-whisper');
-				
-                /*
-                if(whisper_progress_el){
-					whisper_progress_el.classList.add('download-complete-chat-message');
-				}
-				else{
-					console.error("whisper became ready, but cannot find loading progress indicator element");
-				}
-                */
-                
-                
-			}
-			else if(e.data.status == 'initiate'){
-				console.log("whisper worker sent initiate message");
-			}
-			else if(e.data.status == 'download'){
-				console.log("whisper worker sent download message");
-                
-			}
-			
-			else if(e.data.status == 'update'){
-				if(typeof e.data.data == 'object' && e.data.data != null && e.data.data.length) {
-                    
-                // update
-                   
-				}
-                
-				
-			}
-			
-			else if(e.data.status == 'complete'){
-				window.whisper_worker_busy = false;
-				console.log('GOT WHISPER COMPLETE.  e.data: ', e.data);
-				console.log('GOT WHISPER COMPLETE.  e.data.transcript: ', e.data.transcript);
-				console.log('GOT WHISPER COMPLETE.  e.data.task: ', e.data.task);
-				
-				if(e.data.transcript == null){
-					console.warn("whisper recognition failed. If this is the first run, that's normal.");
-                    
-					// set_state(LISTENING);
-				}
-				else if(typeof e.data.transcript != 'undefined'){
-					console.log("whisper returned transcription text: ", e.data.transcript);
-					
-					if(Array.isArray(e.data.transcript)){
-						console.log("typeof transcription is array");
-					}
-					else if(typeof e.data.transcript == 'object'){
-						if(typeof e.data.transcript.text == 'string'){
-							console.log("GOT TEXT: ", e.data.transcript.text);
-						}
-					}
-				}
-				else{
-					console.log("transcript was not in whisper e.data");
-				}
-				
-				// add_chat_message("whisper","(down)loading: " + e.data.file);
-			}
-			else{
-				console.log("whisper worker sent a content message");
-				window.whisper_worker_busy = false;
-				
-				if(e.data.data == null){
-					console.warn("whisper recognition failed. If this is the first run, that's normal.");
-					// set_state(LISTENING);
-				}
-			}
-		}
-			
-			if(window.enable_microphone == false){
-				console.log("whisper worker returned audio file, but in the meantime enable_microphone was disabled. Throwing away the data.");
-			}
-			else{
-				
-				
-			}
-	
-	});
-
-
-	window.whisper_worker.addEventListener('error', (error) => {
-		console.error("ERROR: whisper_worker sent error. terminating!. Error was: ", error, error.message);
-		whisper_worker_error_count++;
-		
-		window.whisper_worker.terminate();
-		window.whisper_worker_busy = false;
-		if(typeof error != 'undefined' && whisper_worker_error_count < 10){
-			setTimeout(() => {
-				console.log("attempting to restart whisper worker");
-				create_whisper_worker();
-			},1000);
-		}
-		else{
-			console.error("whisper_worker errored out");
-		}
-	});
-}
-
-// create whisper worker
-create_whisper_worker();
-
-
-//
-//  Send audio buffer to whisper worker
-//
-function do_whisper_web(task,language=null){
-	console.log("in do_whisper_web. task: ", task);
-	
-	if(window.whisper_worker_busy){
-		console.error("do_whisper_web was called while whisper worker was busy. Aborting.");
-		return
-	}
-	
-	if(typeof task.recorded_audio == 'undefined'){
-		console.error("do_whisper_web: task did not contain recorded_audio. Aborting.");
-		return
-	}
-	
-	task.state == 'stt_in_progress';
-	
-	let multilingual = false;
-    
-	if(typeof language == 'string'){
-		if(language != 'en'){
-			multilingual = true;
-		}
-	}
-    
-	const quantized = false;
-	
-    const model = "Xenova/whisper-tiny";
-	
-	const subtask = null;
-	
-	console.log("do_whisper_web: sending audio to whisper worker: ", task.recorded_audio);
-	
-    window.whisper_worker.postMessage({
-        task:task,
-        model,
-        multilingual,
-        quantized,
-        subtask: multilingual ? subtask : null,
-        language:
-            multilingual && language !== "auto" ? language : null,
-    });
-
-}
-window.do_whisper_web = do_whisper_web;
-    
-</script>    
-    
-    
-<script>
-    
-  var myvad = null;    
-    
-  async function main() {
-      
-    myvad = await vad.MicVAD.new({
-        
-      onSpeechStart: () => {
-        console.log("Speech start detected")
-      },
-        
-      onSpeechEnd: (audio) => {
-          
-        console.log("Speech end detected")
-                    
-        var task = {};
-        
-        task.recorded_audio = audio;
-          
-        do_whisper_web(task);
-          
-      },
-        
-        onFrameProcessed: (probabilities) => {
-            
-            // {isSpeech: float; notSpeech: float}
-            
-            let isSpeech = probabilities.isSpeech;
-            
-            let notSpeech = probabilities.notSpeech;
-                        
-            if(isSpeech > 0.1) {
-                // console.log("Is Speech: ", isSpeech);
-            }
-        } 
-        
-    })
-  }
-    
-  main();
-   
-let microphone;
-
-  
-</script>    
-    
-    
-<script>
-        
-document.addEventListener('DOMContentLoaded', function () {
-    
-  var checkbox = document.querySelector('input[type="checkbox"]');
-
-  checkbox.addEventListener('change', function () {
-    
-    if (checkbox.checked) {
-     
-      console.log('Checked');
-    
-        myvad.start()
-        
-        
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(function(stream) {
-    
-                microphone = stream;
-            
-        })
-            .catch(function(err) {
-    
-                console.log('Failed to get microphone access', err);
-        });
-        
-    } else {
-     
-      console.log('Not checked');
-    
-        myvad.pause()
-        
-        
-    }
-  });
-});        
-       
-    
-let debounceTimer;
-    
-function playSound() {
-    const audio = new Audio('/sounds/dingsound.mp3');
-    audio.play();
-}
-    
-function handleEvent(event, threshold = 0.2, debounceTime = 1000){
-        
-    let score = event.detail;
-    
-    console.log('Hey Haley Score: ', score);
-    
-    if (debounceTimer) return;
-  
-    if (score > threshold) {
-        playSound();
-        debounceTimer = setTimeout(() => {
-            clearTimeout(debounceTimer);
-            debounceTimer = null;
-        }, debounceTime);
-    }
-}
-
-
-window.addEventListener('wakeWordEvent', handleEvent);
-  
-  </script>  
+<script src="/js/index.js"></script>
 
     <script src="flat-ui/js/bootstrap.min.js"></script>
     <script src="common-files/js/modernizr.custom.js"></script>
